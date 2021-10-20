@@ -60,6 +60,6 @@ def histogram_equalize(im_orig):
     return [im_eq, hist_origin, hist_eq]
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
     # imRGB = read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2)
     # print(histogram_equalize(imRGB)[2].shape)
