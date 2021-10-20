@@ -39,15 +39,6 @@ def yiq2rgb(imYIQ):
     return imYIQ @ YIQ2RGB
 
 
-a = np.array([[1, 2, 3], [1, 4, 5]])
-b = a + 2
-c = np.dstack((a, b))
-d = c @ np.array([[1, 2],
-                  [3, 4]])
-print(c.shape)
-print(c)
-print(d.shape)
-print(d)
 
 # if __name__ == '__main__':
 # imdisplay("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2)
