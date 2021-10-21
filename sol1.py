@@ -60,8 +60,37 @@ def histogram_equalize(im_orig):
     return [im_eq, hist_origin, hist_eq]
 
 
-# if __name__ == '__main__':
-    # imRGB = read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2)
-    # print(histogram_equalize(imRGB)[2].shape)
+def quantize(im_orig, n_quant, n_iter):
+    # assume im_origin in grayscale
+    im_to_work = np.around(im_orig * MAX_LEVEL).astype(np.uint32)
+    num_pixels = im_to_work.shape[0] * im_to_work.shape[1]
+    original_bins = np.histogram(im_orig, bins=MAX_LEVEL + 1, range=(MIN_LEVEL, MAX_LEVEL + 1))[0]
+
+    cbins = np.cumsum(original_bins)
+    cbins_weighted = np.cumsum(original_bins * np.arange(MAX_LEVEL + 1))
+
+    num_of_pixel_in_segment = (num_pixels / n_quant)  # for initial step
+    num_of_pixel_in_segment_in_cbins = np.arange(n_quant + 1) * num_of_pixel_in_segment
+    initial_Z = np.digitize(num_of_pixel_in_segment_in_cbins, cbins, right=True).astype(np.uint32)
+
+    initial_Q = [cbins_weighted[initial_Z[1]] / cbins[initial_Z[1]]] + \
+                [(cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / \
+                 (cbins[initial_Z[i + 1]] - cbins[initial_Z[i]]) for i in range(1, n_quant)]
+    # loop for n_quant allowd ("Specific Guidelines" 3)
+
+    curr_Z = initial_Z
+    curr_Q = initial_Q
+    error = []
+    for i in range(n_iter):
+        candidate_to_Z = np.array([MIN_LEVEL] + [(curr_Q[i] - curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(np.uint32)
+        if np.all(candidate_to_Z == curr_Z):
+            break
+        curr_Z = candidate_to_Z
+        curr_Q = [cbins_weighted[curr_Z[1]] / cbins[curr_Z[1]]] + \
+                 [(cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / \
+                  (cbins[initial_Z[i + 1]] - cbins[initial_Z[i]]) for i in range(1, n_quant)]
 
 
+    # if __name__ == '__main__':
+# imRGB = read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2)
+# print(histogram_equalize(imRGB)[2].shape)
