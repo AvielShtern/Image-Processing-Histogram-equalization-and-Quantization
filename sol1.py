@@ -90,7 +90,10 @@ def quantize(im_orig, n_quant, n_iter):
                  [(cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / \
                   (cbins[initial_Z[i + 1]] - cbins[initial_Z[i]]) for i in range(1, n_quant)]
 
+        dif_colors = np.array([]) # diff and then repete
 
-    # if __name__ == '__main__':
+
+
+# if __name__ == '__main__':
 # imRGB = read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2)
 # print(histogram_equalize(imRGB)[2].shape)
