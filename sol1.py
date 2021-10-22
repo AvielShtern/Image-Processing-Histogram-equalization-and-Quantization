@@ -82,7 +82,8 @@ def quantize(im_orig, n_quant, n_iter):
     curr_Q = initial_Q
     error = []
     for i in range(n_iter):
-        candidate_to_Z = np.array([MIN_LEVEL] + [(curr_Q[i] - curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(np.uint32)
+        candidate_to_Z = np.array(
+            [MIN_LEVEL] + [(curr_Q[i] - curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(np.uint32)
         if np.all(candidate_to_Z == curr_Z):
             break
         curr_Z = candidate_to_Z
@@ -90,10 +91,9 @@ def quantize(im_orig, n_quant, n_iter):
                  [(cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / \
                   (cbins[initial_Z[i + 1]] - cbins[initial_Z[i]]) for i in range(1, n_quant)]
 
-        dif_colors = np.array([]) # diff and then repete
+        error.append(np.sum(np.power(np.repeat(curr_Q, np.diff(curr_Z)) - np.arange(MAX_LEVEL + 1), 2) * original_bins))
+        # sum of (qi - g)^2 * h(g)
 
-
-
-# if __name__ == '__main__':
-# imRGB = read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2)
-# print(histogram_equalize(imRGB)[2].shape)
+        # if __name__ == '__main__':
+        # imRGB = read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2)
+        # print(histogram_equalize(imRGB)[2].shape)
