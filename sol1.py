@@ -99,7 +99,3 @@ def quantize(im_orig, n_quant, n_iter):
 
     look_up_table = np.repeat(curr_Q, np.diff(curr_Z))
     return [look_up_table[im_to_work], error]
-
-
-if __name__ == '__main__':
-    quantize(rgb2gray(imread("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png")), 5, 5)
