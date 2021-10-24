@@ -65,7 +65,7 @@ def rgb2yiq(imRGB):
 def yiq2rgb(imYIQ):
     """
     transform an YIQ image into the RGB color space
-    :param imYIQ: height×width×3 np.float64 matrices in the [0, 1] range. imYIQ[:,:,0] encodes the luminance channel Y,
+    :param imYIQ: height×width×3 np.float64 matrices in the [-1, 1] range (Y in [0,1]). imYIQ[:,:,0] encodes the luminance channel Y,
            imYIQ[:,:,1] encodes I, and imYIQ[:,:,2] encodes Q
     :return: imRGB (height×width×3 np.float64 matrices in the [0, 1] range.) the red channel is encoded in imRGB[:,:,0],
              the green in imRGB[:,:,1], and the blue in imRGB[:,:,2]
@@ -74,19 +74,27 @@ def yiq2rgb(imYIQ):
 
 
 def histogram_equalize(im_orig):
-    type_of_im = GRAYSCALE_REPRESENTATION if im_orig.ndim - 1 == GRAYSCALE_REPRESENTATION else RGB_REPRESENTATION
+    """
+    performs histogram equalization of a given grayscale or RGB image.
+    :param im_orig: grayscale or RGB float64 image with values in [0, 1].
+    :return: list [im_eq, hist_orig, hist_eq] where
+            im_eq - is the equalized image. grayscale or RGB float64 image with values in [0, 1].
+            hist_orig - is a 256 bin histogram of the original image (array with shape (256,) ).
+            hist_eq - is a 256 bin histogram of the equalized image (array with shape (256,) ).
+    """
+    type_of_im = GRAYSCALE_REPRESENTATION if im_orig.ndim == DIM_IMAGE_GRAY else RGB_REPRESENTATION
     yiq_img = rgb2yiq(im_orig) if type_of_im == RGB_REPRESENTATION else None
     rgb_or_grayscale = im_orig if type_of_im == GRAYSCALE_REPRESENTATION else yiq_img[:, :, Y_POSITION]
-    im_to_work = np.around(rgb_or_grayscale * 255).astype(np.uint32)
+    im_to_work = np.around(rgb_or_grayscale * 255).astype(np.uint8)
 
     hist_origin = np.histogram(im_to_work, bins=MAX_LEVEL + 1, range=(MIN_LEVEL, MAX_LEVEL + 1))[0]
-    C = np.cumsum(hist_origin.astype(np.float64))
+    C = np.cumsum(hist_origin).astype(np.float64)
     M = (np.argwhere(C > 0))[0][0]  # M be the first gray level for which C(M) != 0
-    T = np.around(255 * ((C - C[M]) / (C[MAX_LEVEL] - C[M]))).astype(np.uint32)  # lookup table
+    T = np.around(MAX_LEVEL * ((C - C[M]) / (C[MAX_LEVEL] - C[M]))).astype(np.uint8)  # lookup table
 
     if type_of_im == RGB_REPRESENTATION:
-        yiq_img[:, :, Y_POSITION] = (T[im_to_work] / 255).astype(np.float64)
-    im_eq = (T[im_to_work] / 255).astype(np.float64) if type_of_im == GRAYSCALE_REPRESENTATION else yiq2rgb(yiq_img)
+        yiq_img[:, :, Y_POSITION] = (T[im_to_work].astype(np.float64) / MAX_LEVEL)
+    im_eq = (T[im_to_work].astype(np.float64) / MAX_LEVEL) if type_of_im == GRAYSCALE_REPRESENTATION else yiq2rgb(yiq_img)
     hist_eq = np.histogram(T[im_to_work], bins=MAX_LEVEL + 1, range=(MIN_LEVEL, MAX_LEVEL + 1))[0]
 
     return [im_eq, hist_origin, hist_eq]
@@ -134,4 +142,15 @@ def quantize(im_orig, n_quant, n_iter):
 
 
 if __name__ == '__main__':
-    print(read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2))
+    x = np.hstack([np.repeat(np.arange(0, 50, 2), 10)[None, :], np.array([255] * 6)[None, :]])
+    grad = np.tile(x, (256, 1)).astype(np.float64) / MAX_LEVEL
+    plt.figure()
+    plt.imshow(grad, cmap='gray')
+    plt.axis("off")
+    plt.show()
+    plt.figure()
+    plt.imshow(histogram_equalize(grad)[0], cmap='gray')
+    plt.axis("off")
+    plt.show()
+
+
