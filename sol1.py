@@ -8,6 +8,8 @@ RGB_REPRESENTATION = 2
 Y_POSITION = 0
 MIN_LEVEL = 0
 MAX_LEVEL = 255
+DIM_IMAGE_GRAY = 2
+DIM_IMAGE_RGB = 3
 
 x = np.hstack([np.repeat(np.arange(0, 50, 2), 10)[None, :], np.array([255] * 6)[None, :]])
 grad = np.tile(x, (256, 1))
@@ -27,11 +29,11 @@ def read_image(filename, representation):
     :return: image is represented by a matrix of type np.float64 with intensities (either grayscale or RGB channel
              intensities) normalized to the range [0, 1].
     """
-    rgb_or_gray_scale_image = imread(filename).astype(np.float64) / 255
+    rgb_or_gray_scale_image = imread(filename).astype(np.float64) / MAX_LEVEL
     if representation == RGB_REPRESENTATION or (
-            representation == GRAYSCALE_REPRESENTATION and rgb_or_gray_scale_image.ndim == 2):
+            representation == GRAYSCALE_REPRESENTATION and rgb_or_gray_scale_image.ndim == DIM_IMAGE_GRAY):
         return rgb_or_gray_scale_image
-    elif representation == GRAYSCALE_REPRESENTATION and rgb_or_gray_scale_image.ndim == 3:
+    elif representation == GRAYSCALE_REPRESENTATION and rgb_or_gray_scale_image.ndim == DIM_IMAGE_RGB:
         return rgb2gray(rgb_or_gray_scale_image)
 
 
@@ -50,10 +52,24 @@ def imdisplay(filename, representation):
 
 
 def rgb2yiq(imRGB):
+    """
+    transform an RGB image into the YIQ color space
+    :param imRGB: height×width×3 np.float64 matrices in the [0, 1] range. the red channel is encoded in imRGB[:,:,0],
+                  the green in imRGB[:,:,1], and the blue in imRGB[:,:,2]
+    :return: imYIQ (height×width×3 np.float64 matrices in the [0, 1] range) imYIQ[:,:,0] encodes the luminance channel Y,
+             imYIQ[:,:,1] encodes I, and imYIQ[:,:,2] encodes Q
+    """
     return imRGB @ RGB2YIQ.T
 
 
 def yiq2rgb(imYIQ):
+    """
+    transform an YIQ image into the RGB color space
+    :param imYIQ: height×width×3 np.float64 matrices in the [0, 1] range. imYIQ[:,:,0] encodes the luminance channel Y,
+           imYIQ[:,:,1] encodes I, and imYIQ[:,:,2] encodes Q
+    :return: imRGB (height×width×3 np.float64 matrices in the [0, 1] range.) the red channel is encoded in imRGB[:,:,0],
+             the green in imRGB[:,:,1], and the blue in imRGB[:,:,2]
+    """
     return imYIQ @ YIQ2RGB.T
 
 
