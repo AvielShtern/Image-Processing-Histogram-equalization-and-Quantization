@@ -103,12 +103,13 @@ def cases_rgb_grayscale(im_orig):
     :return: tuple (type_of_im, yiq_img, im_to_work) where:
             type_of_im = 1 if the image in grayscale (im.ndim = 2) else (im.ndim = 3) type_of_im = 2
             yiq_img = if type_of_im = 2 the yiq convert. else None
-            im_to_work is the image to work (gray scale or rgb as yiq) where im_to_work.ndim = 2
+            im_to_work is the image to work (gray scale or rgb as yiq) where im_to_work.ndim = 2, the range is [0,255]
+            and type is uint8
     """
     type_of_im = GRAYSCALE_REPRESENTATION if im_orig.ndim == DIM_IMAGE_GRAY else RGB_REPRESENTATION
     yiq_img = rgb2yiq(im_orig) if type_of_im == RGB_REPRESENTATION else None
     rgb_or_grayscale = im_orig if type_of_im == GRAYSCALE_REPRESENTATION else yiq_img[:, :, Y_POSITION]
-    im_to_work = np.around(rgb_or_grayscale * 255).astype(np.uint8)
+    im_to_work = np.around(rgb_or_grayscale * MAX_LEVEL).astype(np.uint8)
     return type_of_im, yiq_img, im_to_work
 
 
@@ -124,56 +125,90 @@ def quantize(im_orig, n_quant, n_iter):
                 of the quantization procedure.
     """
     # assume im_origin in grayscale
-    im_to_work = np.around(im_orig * MAX_LEVEL).astype(np.uint32)
+
+    type_of_im, yiq_img, im_to_work = cases_rgb_grayscale(im_orig)
     num_pixels = im_to_work.shape[0] * im_to_work.shape[1]
-    original_bins = np.histogram(im_orig, bins=MAX_LEVEL + 1, range=(MIN_LEVEL, MAX_LEVEL + 1))[0]
+    original_bins = np.histogram(im_to_work, bins=MAX_LEVEL + 1, range=(MIN_LEVEL, MAX_LEVEL + 1))[0].astype(np.int64)
 
     cbins = np.cumsum(original_bins)
-    cbins_weighted = np.cumsum(original_bins * np.arange(MAX_LEVEL + 1))
+    cbins_weighted = np.cumsum(original_bins * np.arange(MAX_LEVEL + 1)) # g*h(h)
 
     num_of_pixel_in_segment = (num_pixels / n_quant)  # for initial step
     num_of_pixel_in_segment_in_cbins = np.arange(n_quant + 1) * num_of_pixel_in_segment
-    initial_Z = np.digitize(num_of_pixel_in_segment_in_cbins, cbins, right=True).astype(np.uint32)
+    initial_Z = np.digitize(num_of_pixel_in_segment_in_cbins, cbins, right=True).astype(np.int64)
 
-    initial_Q = [cbins_weighted[initial_Z[1]] / (cbins[initial_Z[1]] + 1)] + \
+    initial_Q = np.array([cbins_weighted[initial_Z[1]] / cbins[initial_Z[1]]] + \
                 [(cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / \
-                 (cbins[initial_Z[i + 1]] - cbins[initial_Z[i]] + 1) for i in range(1, n_quant)]
+                 (cbins[initial_Z[i + 1]] - cbins[initial_Z[i]]) for i in range(1, n_quant)])
     # loop for n_quant allowd ("Specific Guidelines" 3)
-    # divide by 0 + 1
+    # divide by 0????
 
     curr_Z = initial_Z
     curr_Q = initial_Q
     error = []
     for i in range(n_iter):
         candidate_to_Z = np.array(
-            [MIN_LEVEL - 1] + [(curr_Q[i] - curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(
-            np.uint32)
+            [MIN_LEVEL - 1] + [(curr_Q[i] + curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(
+            np.int32)
         if np.all(candidate_to_Z == curr_Z):
             break
         curr_Z = candidate_to_Z
-        curr_Q = [cbins_weighted[curr_Z[1]] / (cbins[curr_Z[1]] + 1)] + \
-                 [((cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / (
-                         cbins[initial_Z[i + 1]] - cbins[initial_Z[i]] + 1)) for i in range(1, n_quant)]
-        # divide by zero +1
+        curr_Q = np.array([cbins_weighted[curr_Z[1]] / (cbins[curr_Z[1]])] + \
+                 [((cbins_weighted[curr_Z[i + 1]] - cbins_weighted[curr_Z[i]]) / (
+                         cbins[curr_Z[i + 1]] - cbins[curr_Z[i]])) for i in range(1, n_quant)])
+        # divide by zero????
 
         error.append(np.sum(np.power(np.repeat(curr_Q, np.diff(curr_Z)) - np.arange(MAX_LEVEL + 1), 2) * original_bins))
         # sum of (qi - g)^2 * h(g)
 
-    look_up_table = np.repeat(curr_Q, np.diff(curr_Z))
-    return [look_up_table[im_to_work], error]
+    print(np.around(curr_Q).astype(np.int32))
+    look_up_table = np.repeat(np.around(curr_Q).astype(np.int32), np.diff(curr_Z))
+    if type_of_im == RGB_REPRESENTATION:
+        yiq_img[:, :, Y_POSITION] = (look_up_table[im_to_work].astype(np.float64) / MAX_LEVEL)
+    im_quant = (look_up_table[im_to_work].astype(np.float64) / MAX_LEVEL) if type_of_im == GRAYSCALE_REPRESENTATION else yiq2rgb(yiq_img)
+    return [im_quant, error]
 
 
 if __name__ == '__main__':
     rgb_img = read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/wiki2before.jpeg", 2)
     x = np.hstack([np.repeat(np.arange(0, 50, 2), 10)[None, :], np.array([255] * 6)[None, :]])
     grad = np.tile(x, (256, 1)).astype(np.float64) / MAX_LEVEL
+    hist_equal = histogram_equalize(grad)[0]
+
+    im_quant_and_error = quantize(np.clip(hist_equal, 0, 1),3,10)
+
+
+
+
     plt.figure()
-    plt.imshow(rgb_img, cmap='gray')
+    plt.imshow(grad, cmap='gray')
     plt.axis("off")
     plt.show()
+    #
+    #
     plt.figure()
-    plt.imshow(np.clip(histogram_equalize(rgb_img)[0], 0, 1), cmap='gray')
+    plt.imshow(np.clip(hist_equal, 0, 1), cmap='gray')
     plt.axis("off")
     plt.show()
+    #
+    #
+    # hist, bounds = np.histogram(np.around(hist_equal * 255).astype(np.uint8), bins=MAX_LEVEL + 1, range=(MIN_LEVEL, MAX_LEVEL + 1))
+    # print(np.cumsum(hist))
+    # plt.tick_params(labelsize=20)
+    # plt.plot((bounds[:-1] + bounds[1:]) / 2, hist)
+    # plt.hist(np.around(hist_equal * 255).astype(np.uint8).flatten(), bins=256)
+    # plt.show()
+
+
+    # im_quant_and_error = quantize(np.clip(hist_equal, 0, 1),5,10)
+    plt.figure()
+    plt.imshow(np.clip(im_quant_and_error[0], 0, 1), cmap='gray')
+    plt.axis("off")
+    plt.show()
+    #
+    print(len(im_quant_and_error[1]))
+    plt.plot(im_quant_and_error[1])
+    plt.show()
+
 
 
