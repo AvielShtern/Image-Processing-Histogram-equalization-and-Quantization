@@ -82,10 +82,7 @@ def histogram_equalize(im_orig):
             hist_orig - is a 256 bin histogram of the original image (array with shape (256,) ).
             hist_eq - is a 256 bin histogram of the equalized image (array with shape (256,) ).
     """
-    type_of_im = GRAYSCALE_REPRESENTATION if im_orig.ndim == DIM_IMAGE_GRAY else RGB_REPRESENTATION
-    yiq_img = rgb2yiq(im_orig) if type_of_im == RGB_REPRESENTATION else None
-    rgb_or_grayscale = im_orig if type_of_im == GRAYSCALE_REPRESENTATION else yiq_img[:, :, Y_POSITION]
-    im_to_work = np.around(rgb_or_grayscale * 255).astype(np.uint8)
+    type_of_im, yiq_img, im_to_work = cases_rgb_grayscale(im_orig)
 
     hist_origin = np.histogram(im_to_work, bins=MAX_LEVEL + 1, range=(MIN_LEVEL, MAX_LEVEL + 1))[0]
     C = np.cumsum(hist_origin).astype(np.float64)
@@ -99,8 +96,33 @@ def histogram_equalize(im_orig):
 
     return [im_eq, hist_origin, hist_eq]
 
+def cases_rgb_grayscale(im_orig):
+    """
+    helper for histogram_equalize and quantize for cases of grayscale/rgb
+    :param im_origin: grayscale or RGB float64 image with values in [0, 1].
+    :return: tuple (type_of_im, yiq_img, im_to_work) where:
+            type_of_im = 1 if the image in grayscale (im.ndim = 2) else (im.ndim = 3) type_of_im = 2
+            yiq_img = if type_of_im = 2 the yiq convert. else None
+            im_to_work is the image to work (gray scale or rgb as yiq) where im_to_work.ndim = 2
+    """
+    type_of_im = GRAYSCALE_REPRESENTATION if im_orig.ndim == DIM_IMAGE_GRAY else RGB_REPRESENTATION
+    yiq_img = rgb2yiq(im_orig) if type_of_im == RGB_REPRESENTATION else None
+    rgb_or_grayscale = im_orig if type_of_im == GRAYSCALE_REPRESENTATION else yiq_img[:, :, Y_POSITION]
+    im_to_work = np.around(rgb_or_grayscale * 255).astype(np.uint8)
+    return type_of_im, yiq_img, im_to_work
+
 
 def quantize(im_orig, n_quant, n_iter):
+    """
+    performs optimal quantization of a given grayscale or RGB image.
+    :param im_orig:  grayscale or RGB image to be quantized (float64 image with values in [0, 1]).
+    :param n_quant: the number of intensities the output im_quant image should have.
+    :param n_iter: the maximum number of iterations of the optimization procedure (may converge earlier.)
+    :return: a list [im_quant, error] where:
+                im_quant - is the quantized output image. (float64 image with values in [0, 1]).
+                error - is an array with shape (n_iter,) (or less) of the total intensities error for each iteration
+                of the quantization procedure.
+    """
     # assume im_origin in grayscale
     im_to_work = np.around(im_orig * MAX_LEVEL).astype(np.uint32)
     num_pixels = im_to_work.shape[0] * im_to_work.shape[1]
@@ -142,14 +164,15 @@ def quantize(im_orig, n_quant, n_iter):
 
 
 if __name__ == '__main__':
+    rgb_img = read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/wiki2before.jpeg", 2)
     x = np.hstack([np.repeat(np.arange(0, 50, 2), 10)[None, :], np.array([255] * 6)[None, :]])
     grad = np.tile(x, (256, 1)).astype(np.float64) / MAX_LEVEL
     plt.figure()
-    plt.imshow(grad, cmap='gray')
+    plt.imshow(rgb_img, cmap='gray')
     plt.axis("off")
     plt.show()
     plt.figure()
-    plt.imshow(histogram_equalize(grad)[0], cmap='gray')
+    plt.imshow(np.clip(histogram_equalize(rgb_img)[0], 0, 1), cmap='gray')
     plt.axis("off")
     plt.show()
 
