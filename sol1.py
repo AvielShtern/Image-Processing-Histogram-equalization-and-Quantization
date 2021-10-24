@@ -15,17 +15,33 @@ grad = np.tile(x, (256, 1))
 RGB2YIQ = np.array([[0.299, 0.587, 0.114],
                     [0.569, -0.275, -0.321],
                     [0.212, -0.523, 0.311]]).astype(np.float64)
+
 YIQ2RGB = np.linalg.inv(RGB2YIQ)
 
 
 def read_image(filename, representation):
-    rgb_image = imread(filename).astype(np.float64) / 255
-    return rgb_image if representation == RGB_REPRESENTATION \
-        else rgb2gray(rgb_image) if representation == GRAYSCALE_REPRESENTATION \
-        else -1
+    """
+    reads an image file and converts it into a given representation.
+    :param filename: the filename of an image on disk (could be grayscale or RGB).
+    :param representation: either 1 or 2 defining whether the output should be a grayscale image (1) or an RGB image (2).
+    :return: image is represented by a matrix of type np.float64 with intensities (either grayscale or RGB channel
+             intensities) normalized to the range [0, 1].
+    """
+    rgb_or_gray_scale_image = imread(filename).astype(np.float64) / 255
+    if representation == RGB_REPRESENTATION or (
+            representation == GRAYSCALE_REPRESENTATION and rgb_or_gray_scale_image.ndim == 2):
+        return rgb_or_gray_scale_image
+    elif representation == GRAYSCALE_REPRESENTATION and rgb_or_gray_scale_image.ndim == 3:
+        return rgb2gray(rgb_or_gray_scale_image)
 
 
 def imdisplay(filename, representation):
+    """
+     open a new figure and display the loaded image in the converted representation
+    :param filename: the filename of an image on disk (could be grayscale or RGB).
+    :param representation: either 1 or 2 defining whether the display should be a grayscale image (1) or an RGB image (2).
+    :return: None
+    """
     im = read_image(filename, representation)
     plt.figure()
     plt.imshow(im, cmap='gray')
@@ -77,7 +93,7 @@ def quantize(im_orig, n_quant, n_iter):
                 [(cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / \
                  (cbins[initial_Z[i + 1]] - cbins[initial_Z[i]] + 1) for i in range(1, n_quant)]
     # loop for n_quant allowd ("Specific Guidelines" 3)
-    #divide by 0 + 1
+    # divide by 0 + 1
 
     curr_Z = initial_Z
     curr_Q = initial_Q
@@ -91,11 +107,15 @@ def quantize(im_orig, n_quant, n_iter):
         curr_Z = candidate_to_Z
         curr_Q = [cbins_weighted[curr_Z[1]] / (cbins[curr_Z[1]] + 1)] + \
                  [((cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / (
-                             cbins[initial_Z[i + 1]] - cbins[initial_Z[i]] + 1)) for i in range(1, n_quant)]
-        #divide by zero +1
+                         cbins[initial_Z[i + 1]] - cbins[initial_Z[i]] + 1)) for i in range(1, n_quant)]
+        # divide by zero +1
 
         error.append(np.sum(np.power(np.repeat(curr_Q, np.diff(curr_Z)) - np.arange(MAX_LEVEL + 1), 2) * original_bins))
         # sum of (qi - g)^2 * h(g)
 
     look_up_table = np.repeat(curr_Q, np.diff(curr_Z))
     return [look_up_table[im_to_work], error]
+
+
+if __name__ == '__main__':
+    print(read_image("/Users/avielshtern/Desktop/third_year/IMAGE_PROCESSING/EX/EX1/image2.png", 2))
