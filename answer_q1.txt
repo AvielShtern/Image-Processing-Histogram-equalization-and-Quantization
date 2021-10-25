@@ -1,1 +1,3 @@
-division by zero.
+Problem of division by zero.
+If a particular segment in any division has no pixels at all we will divide by zero during the definition of q for
+that segment.
