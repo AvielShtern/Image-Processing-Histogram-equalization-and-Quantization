@@ -1,5 +1,5 @@
 import numpy as np
-from imageio import imread, imwrite
+from imageio import imread
 import matplotlib.pyplot as plt
 from skimage.color import rgb2gray
 
@@ -11,8 +11,6 @@ MAX_LEVEL = 255
 DIM_IMAGE_GRAY = 2
 DIM_IMAGE_RGB = 3
 
-# x = np.hstack([np.repeat(np.arange(0, 50, 2), 10)[None, :], np.array([255] * 6)[None, :]])
-# grad = np.tile(x, (256, 1))
 
 RGB2YIQ = np.array([[0.299, 0.587, 0.114],
                     [0.569, -0.275, -0.321],
@@ -71,7 +69,6 @@ def yiq2rgb(imYIQ):
              the green in imRGB[:,:,1], and the blue in imRGB[:,:,2]
     """
     return imYIQ @ YIQ2RGB.T
-    # return np.clip(imYIQ @ YIQ2RGB.T, 0, 1)
 
 
 def histogram_equalize(im_orig):
@@ -89,8 +86,6 @@ def histogram_equalize(im_orig):
     C = np.cumsum(hist_origin).astype(np.float64)
     M = (np.argwhere(C > 0))[0][0]  # M be the first gray level for which C(M) != 0
     T = np.around(MAX_LEVEL * ((C - C[M]) / (C[MAX_LEVEL] - C[M]))).astype(np.int32)  # lookup table
-    # if not np.all((im_to_work >= 0) & (im_to_work <= 255)):
-    #     raise Exception("lookup table not in range [0,255]")
 
     if type_of_im == RGB_REPRESENTATION:
         yiq_img[:, :, Y_POSITION] = (T[im_to_work].astype(np.float64) / MAX_LEVEL)
@@ -98,7 +93,6 @@ def histogram_equalize(im_orig):
         yiq_img)
     hist_eq = np.histogram(T[im_to_work], bins=MAX_LEVEL + 1, range=(MIN_LEVEL, MAX_LEVEL + 1))[0]
 
-    # return [np.clip(im_eq, 0, 1), hist_origin, hist_eq]
     return [im_eq, hist_origin, hist_eq]
 
 
@@ -112,14 +106,10 @@ def cases_rgb_grayscale(im_orig):
             im_to_work is the image to work (gray scale or rgb as yiq) where im_to_work.ndim = 2, the range is [0,255]
             and type is int32
     """
-    # if not np.all((im_orig >= 0) & (im_orig <= 1)):
-    #     raise Exception("im origin not in range [0,1]")
     type_of_im = GRAYSCALE_REPRESENTATION if im_orig.ndim == DIM_IMAGE_GRAY else RGB_REPRESENTATION
     yiq_img = rgb2yiq(im_orig) if type_of_im == RGB_REPRESENTATION else None
     rgb_or_grayscale = im_orig if type_of_im == GRAYSCALE_REPRESENTATION else yiq_img[:, :, Y_POSITION]
     im_to_work = np.around(rgb_or_grayscale * MAX_LEVEL).astype(np.int32)
-    # if not np.all((im_to_work >= 0) & (im_to_work <= 255)):
-    #     raise Exception("im to work not in range [0,255]")
     return type_of_im, yiq_img, im_to_work
 
 
@@ -157,15 +147,14 @@ def quantize(im_orig, n_quant, n_iter):
     error = []
     for i in range(n_iter):
         candidate_to_Z = np.array(
-            [MIN_LEVEL - 1] + [(curr_Q[i] + curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(
-            np.int32)
+            [MIN_LEVEL - 1] + [(curr_Q[i] + curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(np.int32)
+                                                                # loop for n_quant allowd ("Specific Guidelines" 3)
         if np.all(candidate_to_Z == curr_Z):
             break
         curr_Z = candidate_to_Z
         curr_Q = np.array([cbins_weighted[curr_Z[1]] / (cbins[curr_Z[1]])] + \
                           [((cbins_weighted[curr_Z[i + 1]] - cbins_weighted[curr_Z[i]]) / (
                                   cbins[curr_Z[i + 1]] - cbins[curr_Z[i]])) for i in range(1, n_quant)])
-        # divide by zero????
 
         error.append(np.sum(np.power(np.repeat(curr_Q, np.diff(curr_Z)) - np.arange(MAX_LEVEL + 1), 2) * original_bins))
         # sum of (qi - g)^2 * h(g)
@@ -176,8 +165,7 @@ def quantize(im_orig, n_quant, n_iter):
         return [yiq2rgb(yiq_img), error]
 
     im_quant = (look_up_table[im_to_work].astype(np.float64) / MAX_LEVEL)
-    # return [np.clip(im_quant, 0, 1), error]
-    return [im_quant, error]
+    return [im_quant, np.array(error)]
 
 
 def quantize_rgb(im_orig, n_quant):
@@ -188,7 +176,7 @@ def quantize_rgb(im_orig, n_quant):
      will map all the points in that group. The loss function is pretty much the same as what we learned in class
      (Euclidean distance from the center and also the weight (h) part of the equation because it will be the "amount of
      points" there are of each color)
-     for this problem I using K-means algorithm that we learn in iml course (lest year) And for that I use the
+     for this problem I using K-means algorithm/// that we learn in iml course (lest year) And for that I use the
      library "scikit-learn".
     :param im_orig: grayscale or RGB image to be quantized (float64 image with values in [0, 1]).
     :param n_quant: the number of intensities your output im_quant image should have.
