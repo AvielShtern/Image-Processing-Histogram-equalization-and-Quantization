@@ -63,8 +63,8 @@ def rgb2yiq(imRGB):
 def yiq2rgb(imYIQ):
     """
     transform an YIQ image into the RGB color space
-    :param imYIQ: height×width×3 np.float64 matrices in the [-1, 1] range (Y in [0,1]). imYIQ[:,:,0] encodes the luminance channel Y,
-           imYIQ[:,:,1] encodes I, and imYIQ[:,:,2] encodes Q
+    :param imYIQ: height×width×3 np.float64 matrices in the [-1, 1] range (Y in [0,1]). imYIQ[:,:,0] encodes the
+            luminance channel Y, imYIQ[:,:,1] encodes I, and imYIQ[:,:,2] encodes Q
     :return: imRGB (height×width×3 np.float64 matrices in the [0, 1] range.) the red channel is encoded in imRGB[:,:,0],
              the green in imRGB[:,:,1], and the blue in imRGB[:,:,2]
     """
@@ -134,7 +134,8 @@ def quantize(im_orig, n_quant, n_iter):
     num_of_pixel_in_segment = (total_num_pixels / n_quant)  # for initial step
 
     initial_Z = np.array(
-        [MIN_LEVEL - 1] + [np.argmin(np.abs(cbins - (i * num_of_pixel_in_segment))) for i in range(1, n_quant)] + [MAX_LEVEL])
+        [MIN_LEVEL - 1] + [np.argmin(np.abs(cbins - (i * num_of_pixel_in_segment))) for i in range(1, n_quant)] +
+        [MAX_LEVEL])
                                                              # loop for n_quant allowd ("Specific Guidelines" 3)
 
     initial_Q = np.array([cbins_weighted[initial_Z[1]] / cbins[initial_Z[1]]] + \
