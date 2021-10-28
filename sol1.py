@@ -11,7 +11,6 @@ MAX_LEVEL = 255
 DIM_IMAGE_GRAY = 2
 DIM_IMAGE_RGB = 3
 
-
 RGB2YIQ = np.array([[0.299, 0.587, 0.114],
                     [0.569, -0.275, -0.321],
                     [0.212, -0.523, 0.311]]).astype(np.float64)
@@ -136,20 +135,21 @@ def quantize(im_orig, n_quant, n_iter):
     initial_Z = np.array(
         [MIN_LEVEL - 1] + [np.argmin(np.abs(cbins - (i * num_of_pixel_in_segment))) for i in range(1, n_quant)] +
         [MAX_LEVEL])
-                                                             # loop for n_quant allowd ("Specific Guidelines" 3)
+    # loop for n_quant allowd ("Specific Guidelines" 3)
 
     initial_Q = np.array([cbins_weighted[initial_Z[1]] / cbins[initial_Z[1]]] + \
                          [(cbins_weighted[initial_Z[i + 1]] - cbins_weighted[initial_Z[i]]) / \
                           (cbins[initial_Z[i + 1]] - cbins[initial_Z[i]]) for i in range(1, n_quant)])
-                                                 # loop for n_quant allowd ("Specific Guidelines" 3)
+    # loop for n_quant allowd ("Specific Guidelines" 3)
 
     curr_Z = initial_Z
     curr_Q = initial_Q
     error = []
     for i in range(n_iter):
         candidate_to_Z = np.array(
-            [MIN_LEVEL - 1] + [(curr_Q[i] + curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(np.int32)
-                                                                # loop for n_quant allowd ("Specific Guidelines" 3)
+            [MIN_LEVEL - 1] + [(curr_Q[i] + curr_Q[i - 1]) / 2 for i in range(1, n_quant)] + [MAX_LEVEL]).astype(
+            np.int32)
+        # loop for n_quant allowd ("Specific Guidelines" 3)
         if np.all(candidate_to_Z == curr_Z):
             break
         curr_Z = candidate_to_Z
@@ -163,7 +163,7 @@ def quantize(im_orig, n_quant, n_iter):
     look_up_table = np.repeat(np.around(curr_Q).astype(np.int32), np.diff(curr_Z)).astype(np.uint32)
     if type_of_im == RGB_REPRESENTATION:
         yiq_img[:, :, Y_POSITION] = (look_up_table[im_to_work].astype(np.float64) / MAX_LEVEL)
-        return [yiq2rgb(yiq_img), error]
+        return [yiq2rgb(yiq_img), np.array(error)]
 
     im_quant = (look_up_table[im_to_work].astype(np.float64) / MAX_LEVEL)
     return [im_quant, np.array(error)]
@@ -184,7 +184,7 @@ def quantize_rgb(im_orig, n_quant):
     :return: the quantized image im_quant(float64 image with values in [0, 1]).
     """
     from sklearn.cluster import KMeans
-    num_of_iteretion = 300  # Number of iterations that the model will run (unless there was a convergence)
+    num_of_iteretion = 100  # Number of iterations that the model will run (unless there was a convergence)
     rows = im_orig.shape[0]
     cols = im_orig.shape[1]
     kmeans = KMeans(n_clusters=n_quant, max_iter=num_of_iteretion, random_state=0).fit(im_orig.reshape(rows * cols, 3))
